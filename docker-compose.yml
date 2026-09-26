@@ -1,0 +1,47 @@
+# Desarrollo local:  docker compose up -d --build
+# API en http://localhost:3010/api  ·  Postgres en localhost:5436
+
+services:
+  api:
+    build: .
+    container_name: api_rest_app
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: api_rest
+      DB_USERNAME: api_rest
+      DB_PASSWORD: secret
+      API_KEY: ${API_KEY:-}
+    ports:
+      - "3010:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [api_rest]
+
+  db:
+    image: postgres:16-alpine
+    container_name: api_rest_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: api_rest
+      POSTGRES_USER: api_rest
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5436:5432"
+    volumes:
+      - api_rest_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U api_rest -d api_rest"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [api_rest]
+
+volumes:
+  api_rest_db:
+
+networks:
+  api_rest:

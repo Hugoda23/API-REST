@@ -1,0 +1,55 @@
+# Producción en el VPS compartido con el SGA y FadeApp.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# No publica ningún puerto: el nginx del SGA (que tiene 80/443 y el HTTPS)
+# le pasa el tráfico por la red de Docker del SGA, donde la API tiene el alias
+# `api-rest-web`. La base de datos no sale de la red interna del proyecto.
+
+services:
+  api:
+    build: .
+    container_name: api_rest_app
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-api_rest}
+      DB_USERNAME: ${DB_USERNAME:-api_rest}
+      DB_PASSWORD: ${DB_PASSWORD:?hace falta DB_PASSWORD en .env.production}
+      API_KEY: ${API_KEY:?hace falta API_KEY en .env.production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      interna:
+      proxy:
+        aliases: [api-rest-web]
+
+  db:
+    image: postgres:16-alpine
+    container_name: api_rest_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-api_rest}
+      POSTGRES_USER: ${DB_USERNAME:-api_rest}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - api_rest_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [interna]
+
+volumes:
+  api_rest_db:
+
+networks:
+  interna:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-sga_sga_network}
