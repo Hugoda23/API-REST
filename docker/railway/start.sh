@@ -14,6 +14,21 @@ fi
 if [ -n "$URL_BD" ]; then
     echo "Base de datos: $(echo "$URL_BD" | sed -E 's|^[a-z]+://[^@]*@([^/?]+).*|\1|')"
 fi
+# APP_URL=https://${{RAILWAY_PUBLIC_DOMAIN}} queda en "https://" si aún no se generó
+# el dominio público, y Laravel no arranca con una URL sin host.
+case "$APP_URL" in
+    http://?*|https://?*) ;;
+    *)
+        if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
+            export APP_URL="https://$RAILWAY_PUBLIC_DOMAIN"
+        else
+            export APP_URL="http://localhost"
+            echo "AVISO: APP_URL sin dominio; genera uno en Settings > Networking > Generate Domain."
+        fi
+        ;;
+esac
+echo "APP_URL: $APP_URL"
+
 if [ -z "$APP_KEY" ]; then
     echo "ERROR: falta APP_KEY en las variables del servicio."
     exit 1
