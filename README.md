@@ -79,6 +79,32 @@ docker exec api_rest_app php artisan test
 Corren contra la base `api_rest_test` (la crea `docker/postgres/init` al levantar la base por
 primera vez). `phpunit.xml` la fija con `force="true"`, así que **nunca** vacían `api_rest`.
 
+## Producción en Railway
+
+Railway usa el `Dockerfile` de la raíz (un solo contenedor con FrankenPHP que escucha en
+`$PORT`) y `railway.json` (healthcheck en `/api/health`). Al arrancar cachea config y rutas y
+corre las migraciones.
+
+1. En Railway: **New Project → Deploy from GitHub repo → Hugoda23/API-REST**.
+2. En el mismo proyecto: **+ Create → Database → PostgreSQL**.
+3. En el servicio de la API, pestaña **Variables** (Raw Editor):
+
+   ```env
+   APP_NAME=API-REST
+   APP_KEY=base64:...                          # php artisan key:generate --show
+   APP_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+   APP_LOCALE=es
+   DB_URL=${{Postgres.DATABASE_URL}}
+   API_KEY=...                                 # openssl rand -hex 24
+   ```
+
+   `Postgres` es el nombre del servicio de la base; si le pusiste otro, cámbialo.
+4. **Settings → Networking → Generate Domain** (puerto 8080 si lo pregunta).
+5. Probar: `curl https://<dominio>.up.railway.app/api/health`
+
+Cada push a `main` vuelve a desplegar. Datos de ejemplo (opcional), desde la máquina con el
+CLI de Railway: `railway ssh php artisan db:seed --force`.
+
 ## Producción (VPS compartido con SGA y FadeApp)
 
 El nginx del SGA tiene los puertos 80/443 y el HTTPS. La API **no publica puertos**: su nginx
